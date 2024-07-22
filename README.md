@@ -1,4 +1,4 @@
-## Dependency Caching
+# Dependency Caching
 
 When we are running multiple jobs, some steps of these jobs might be duplicated. But when considering the time that takes to execute these steps, installing dependencies takes the most time.
 
