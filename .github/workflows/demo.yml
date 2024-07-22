@@ -10,6 +10,32 @@ jobs:
     steps:
       - name: Get code
         uses: actions/checkout@v3
+        # We need to cach these dependencies where we first install them.
+        # Dependencies must be simillar between jobs and workflows that use the cache.
+        # Cashing should be done before the installation of dependencies.
+      - name: Caching dependencies
+        uses: actions/cache@v3
+        with:
+          # npm automatically caches fils when they are installed
+          # npm cache files are stored in `~/.npm` on Linux/macOS
+          # If we are using the same machine these cache files are used.
+          # But in the case of GitHub Actions, we are using different runners to different jobs.
+          # We are going to store these cache files in somewhere in GitHub servers and reuse them in other jobs and workflows.
+          # So we need to set the path (~/.npm) of the folder that should be cached and stored by GitHub.
+          path: ~/.npm
+          # The key is used to store and retrieve the cache in the future.
+          # As a part of the key, we can use the hash of the package-lock.json file. (To make the key dynamic)
+          # Here we are hashing the package-lock.json file to create a unique key for the cache.
+          # If the package-lock.json file changes, the cache will be invalidated and a new cache will be created.
+          # Because the hash value will change when the package-lock.json file changes.
+          # By adding ** before the file name, we are telling the hashFiles function to hash all the files with the name package-lock.json in the repository.
+          key: dependencies-${{ hashFiles('**/package-lock.json') }}
+      # If there are no cache files, the cache action will not do anything.
+      # The dependencies will be installed manually. (only for the first time)
+      # If there are cache files, the cache action will restore the cache files to the path that we have specified.
+      # So the dependencies will be installed from the cache files.
+      # If the package-lock.json file has changed, the cache files will be invalidated and a new cache will be created.
+      # And the dependencies will be installed manually. (only for the first time)
       - name: Install dependencies
         run: npm ci
       - name: Lint code
@@ -24,6 +50,14 @@ jobs:
     steps:
       - name: Get code
         uses: actions/checkout@v3
+      # We need to set the cache step here to get the cache files that we have stored in GitHub.
+      # The cache files will be restored to the path that we have specified.
+      - name: Caching dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: dependencies-${{ hashFiles('**/package-lock.json') }}
+      # Now the dependencies are installed from the cache files.
       - name: Install dependencies
         run: npm ci
       - name: Build website
@@ -50,3 +84,6 @@ jobs:
         run: echo "${{ needs.build.outputs.script-file }}"
       - name: Deploy
         run: echo "Deploying..."
+# Even if we run multiple workflow executions, untill the cache files are invalidated, the cache files will be reused.
+# If the package-lock.json file changes, the cache files will be invalidated and a new cache will be created.
+# So the dependencies will be installed manually. (only for the first time)
